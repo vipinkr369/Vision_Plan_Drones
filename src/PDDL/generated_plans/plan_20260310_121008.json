@@ -1,0 +1,43 @@
+{
+  "problem": "problem_latest",
+  "plan_found": true,
+  "actions": [
+    {
+      "name": "take_off",
+      "parameters": [
+        "drone1"
+      ],
+      "start_time": 0.0,
+      "duration": 5.0,
+      "end_time": 5.0
+    },
+    {
+      "name": "fly_to_target",
+      "parameters": [
+        "drone1",
+        "blue_box_0012"
+      ],
+      "start_time": 5.001,
+      "duration": 5.0,
+      "end_time": 10.001,
+      "coordinates": {
+        "x": 1.38,
+        "y": -0.77,
+        "z": 0.0
+      }
+    },
+    {
+      "name": "land",
+      "parameters": [
+        "drone1"
+      ],
+      "start_time": 5.002,
+      "duration": 5.0,
+      "end_time": 10.002
+    }
+  ],
+  "makespan": 10.002,
+  "metric": 10.002,
+  "num_actions": 3,
+  "generated_at": "2026-03-10T12:10:08.992634"
+}
