@@ -10,7 +10,7 @@ from std_msgs.msg import Empty
 from geometry_msgs.msg import Pose
 
 # --- CONFIGURATION ---
-PLAN_JSON_PATH = "/home/vipin/Vision_Plan_Drones/src/PDDL/generated_plans/plan_latest.json"
+PLAN_JSON_PATH = "/home/athos/Vision_Plan_Drones/src/PDDL/generated_plans_new/plan_latest.json"
 VEL_TOPIC = "/drone/cmd_vel"
 POSE_TOPIC = "/drone/gt_pose"
 
@@ -34,6 +34,12 @@ class VPDroneParser(Node):
         self.current_z = 0.0
         self.current_yaw = 0.0
         self.pose_received = False
+
+        # -- HOME POSITION (captured at plan start) --
+        self.home_x = 0.0
+        self.home_y = 0.0
+        self.home_z = 0.0
+        self.home_set = False
 
         # -- FLIGHT PARAMETERS --
         self.fly_speed = 0.75          # m/s cruise speed
@@ -120,6 +126,14 @@ class VPDroneParser(Node):
         self.get_logger().info(
             f"Initial pose: ({self.current_x:.2f}, {self.current_y:.2f}, {self.current_z:.2f})")
 
+        # Remember where we started so we can return here before landing
+        self.home_x = self.current_x
+        self.home_y = self.current_y
+        self.home_z = self.current_z
+        self.home_set = True
+        self.get_logger().info(
+            f"Home position set: ({self.home_x:.2f}, {self.home_y:.2f})")
+
         self.get_logger().info("=" * 50)
         self.get_logger().info("EXECUTING PDDL PLAN")
         self.get_logger().info("=" * 50)
@@ -180,11 +194,9 @@ class VPDroneParser(Node):
         Continuously publishes velocity commands toward the target until
         the drone is within position_tolerance of the target coordinates.
         """
-        target_x = target_x*10
-        target_y = target_y*10
-        target_z = target_z*10
         # Clamp target Z to minimum safe altitude
-        target_z = max(target_z, 0.75)
+        SAFE_ALTITUDE = 2.0
+        target_z = max(target_z, SAFE_ALTITUDE)
 
         self.get_logger().info(
             f"  Flying to {target_name} at ({target_x}, {target_y}, {target_z})")
@@ -198,7 +210,7 @@ class VPDroneParser(Node):
         start_time = time.time()
 
         while rclpy.ok():
-            # Compute errors
+            # Position error in the world frame
             ex = target_x - self.current_x
             ey = target_y - self.current_y
             ez = target_z - self.current_z
@@ -220,9 +232,17 @@ class VPDroneParser(Node):
                     f"(distance remaining: {distance:.2f}m)")
                 return
 
+            # /drone/cmd_vel linear.x/y are body-frame (yaw-aligned) in
+            # normal control mode, so rotate the world error into the
+            # drone's heading frame before commanding velocity.
+            c = math.cos(self.current_yaw)
+            s = math.sin(self.current_yaw)
+            body_ex = c * ex + s * ey      # forward
+            body_ey = -s * ex + c * ey     # left
+
             # Proportional control with speed clamping
-            vx = max(-max_speed, min(max_speed, Kp * ex))
-            vy = max(-max_speed, min(max_speed, Kp * ey))
+            vx = max(-max_speed, min(max_speed, Kp * body_ex))
+            vy = max(-max_speed, min(max_speed, Kp * body_ey))
             vz = max(-max_speed, min(max_speed, Kp * ez))
 
             # Yaw alignment: face the target (only when far enough)
@@ -259,8 +279,63 @@ class VPDroneParser(Node):
     # ACTION: land
     # =====================================================================
     def action_land(self):
-        """Publish land command and wait for the drone to touch down."""
-        self.get_logger().info("  Landing...")
+        """Descend under closed-loop control, then hand off to the plugin.
+
+        The Gazebo plugin cuts all lift ~1 s after it receives /drone/land,
+        so calling it from cruise altitude makes the drone free-fall. We
+        first fly down to just above the ground while holding position,
+        then send the land command for the final settle.
+        """
+        ground_z = 0.15        # m, altitude to reach before handoff
+        descent_speed = 0.4    # m/s, gentle
+        Kp_xy = 0.5
+        Kp_z = 0.6
+        rate_hz = 10
+        timeout = 25.0
+
+        # Fly back over the home position before descending, so the
+        # drone lands where it started instead of on top of the target.
+        if self.home_set:
+            self.get_logger().info(
+                f"  Returning to home ({self.home_x:.2f}, {self.home_y:.2f})...")
+            self.action_fly_to_target(
+                self.home_x, self.home_y, self.current_z,
+                target_name="home")
+
+        hold_x = self.current_x
+        hold_y = self.current_y
+
+        self.get_logger().info(
+            f"  Landing — descending from z={self.current_z:.2f}m...")
+
+        start_time = time.time()
+        while rclpy.ok():
+            if (self.current_z <= ground_z + 0.1
+                    or time.time() - start_time > timeout):
+                break
+
+            ez = ground_z - self.current_z
+
+            # Hold horizontal position (world error -> body frame)
+            ex = hold_x - self.current_x
+            ey = hold_y - self.current_y
+            c = math.cos(self.current_yaw)
+            s = math.sin(self.current_yaw)
+            body_ex = c * ex + s * ey
+            body_ey = -s * ex + c * ey
+
+            msg = Twist()
+            msg.linear.x = max(-0.5, min(0.5, Kp_xy * body_ex))
+            msg.linear.y = max(-0.5, min(0.5, Kp_xy * body_ey))
+            msg.linear.z = max(-descent_speed, min(descent_speed, Kp_z * ez))
+            self.velocity_publisher.publish(msg)
+            time.sleep(1.0 / rate_hz)
+
+        self.stop_drone()
+        time.sleep(0.5)
+
+        self.get_logger().info(
+            f"  At z={self.current_z:.2f}m — sending land command")
         self.land_publisher.publish(Empty())
         time.sleep(self.land_wait)
         self.get_logger().info(f"  Landed at z={self.current_z:.2f}m")

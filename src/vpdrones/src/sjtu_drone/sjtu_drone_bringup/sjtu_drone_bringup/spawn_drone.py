@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import math
 import rclpy
 from gazebo_msgs.srv import SpawnEntity
 
@@ -18,6 +19,8 @@ def main(args=None):
     req.xml = content
     req.robot_namespace = namespace
     req.reference_frame = "world"
+    req.initial_pose.orientation.z = math.sin(-math.pi / 4.0)
+    req.initial_pose.orientation.w = math.cos(-math.pi / 4.0)
 
     while not cli.wait_for_service(timeout_sec=1.0):
         node.get_logger().info('service not available, waiting again...')

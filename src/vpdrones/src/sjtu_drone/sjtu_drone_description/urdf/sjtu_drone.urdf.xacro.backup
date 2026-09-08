@@ -152,7 +152,7 @@
   </gazebo>
 
   <gazebo reference="front_cam_link">
-    <sensor name="front_camera" type="depth">
+    <sensor name="front_camera" type="camera">
       <camera>
         <horizontal_fov>2.09</horizontal_fov>
         <image>
@@ -174,22 +174,13 @@
       <update_rate>60</update_rate>
       <visualize>true</visualize>
       <plugin name="camera_front" filename="libgazebo_ros_camera.so">
-         <ros>
-               <remapping>image_raw:=camera_front</remapping>
-               <remapping>camera_info:=camera_front_info</remapping>
-               <remapping>image_depth:=depth/image_raw</remapping>
-               <remapping>camera_info_depth:=depth/camera_info</remapping>
-               <remapping>points:=depth/points</remapping>
-         </ros>
-
-         <camera_name>front</camera_name>
-         <frame_name>front_cam_link</frame_name>
-
-         <baseline>0.07</baseline>
-         <hack_baseline>0.07</hack_baseline>
-
-         <pointCloudCutoff>0.1</pointCloudCutoff>
-         <pointCloudCutoffMax>100.0</pointCloudCutoffMax>
+        <ros>
+          <remapping>image_raw:=camera_front</remapping>
+          <remapping>camera_info:=camera_front_info</remapping>
+        </ros>
+        <camera_name>front</camera_name>
+        <frame_name>front_cam_link</frame_name>
+        <hack_baseline>0.07</hack_baseline>
       </plugin>
     </sensor>
   </gazebo>

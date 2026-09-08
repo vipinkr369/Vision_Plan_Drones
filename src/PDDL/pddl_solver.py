@@ -224,9 +224,9 @@ class PlanSys2Solver:
 
 def main():
     """Main function"""
-    domain = '/home/psp/ros_ws/src/PDDL/warehouse_drone_domain.pddl'
-    problem = '/home/psp/ros_ws/src/PDDL/generated_problems/problem_latest.pddl'
-    output = '/home/psp/ros_ws/src/PDDL/generated_plans'
+    domain = '/home/athos/Vision_Plan_Drones/src/PDDL/warehouse_drone_domain.pddl'
+    problem = '/home/athos/Vision_Plan_Drones/src/PDDL/generated_problems_new/problem_latest.pddl'
+    output = '/home/athos/Vision_Plan_Drones/src/PDDL/generated_plans_new'
     
     # Solve
     solver = PlanSys2Solver()

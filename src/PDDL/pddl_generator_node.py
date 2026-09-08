@@ -30,10 +30,10 @@ class PDDLGeneratorNode(Node):
         self.generator = PDDLGenerator(domain_name="warehouse-drone")
         
         # File paths
-        self.flight_plan_path = "/home/psp/ros_ws/src/vpdrones/src/sjtu_drone/vpdrones/flight_plan.json"
-        self.output_dir = "/home/psp/ros_ws/src/PDDL/generated_problems"
-        self.domain_file = "/home/psp/ros_ws/src/PDDL/warehouse_drone_domain.pddl"
-        self.solver_script = "/home/psp/ros_ws/src/PDDL/pddl_solver.py"
+        self.flight_plan_path = "/home/athos/vision_chatbot/flight_plan.json"
+        self.output_dir = "/home/athos/Vision_Plan_Drones/src/PDDL/generated_problems_new"
+        self.domain_file = "/home/athos/Vision_Plan_Drones/src/PDDL/warehouse_drone_domain.pddl"
+        self.solver_script = "/home/athos/Vision_Plan_Drones/src/PDDL/pddl_solver.py"
         
         # Create output directory if it doesn't exist
         Path(self.output_dir).mkdir(parents=True, exist_ok=True)
@@ -88,7 +88,7 @@ class PDDLGeneratorNode(Node):
                 ['python3', self.solver_script],
                 capture_output=True,
                 text=True,
-                cwd='/home/psp/ros_ws'
+                cwd='/home/athos/Vision_Plan_Drones'
             )
             # Print solver output
             if result.stdout:
